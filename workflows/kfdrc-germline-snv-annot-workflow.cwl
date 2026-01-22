@@ -16,7 +16,7 @@ doc: |-
   1. Annotate with VEP 105. Optional plugins include:
      - dbnsfp
      - cadd
-  1. Use echtvar to annotate with an external reference (default gnomad 3.1.1)
+  1. Use echtvar to annotate with an external reference (default gnomad 3.1.1, also supports v4.1.0)
   1. Use bcftools to annotate with another external reference (optional clinvar)
   1. Simple rename outputs step
 
@@ -55,7 +55,6 @@ doc: |-
 
   ### [gnomAD 3.1.1](https://gnomad.broadinstitute.org/)
   Using echtvar, we annotate from a [custom implementation of gnomAD v3.1.1](CUSTOM_GNOMAD_REF.md) the following population statistics (columns are give a `gnomad_3_1_1_` prefix to denote source):
-  ```
   gnomad_3_1_1_AC
   gnomad_3_1_1_AN
   gnomad_3_1_1_AF
@@ -173,7 +172,8 @@ doc: |-
    - `output_basename`: string prefix of outputs
    - `tool_name`: short descriptive string of tool output being annotated
   ### RECOMMENDED
-   - `echtvar_anno_zips` file array: Annotation ZIP files for echtvar anno
+   - `echtvar_anno_zips` file array: Annotation ZIP files for echtvar anno (supports gnomAD v3.1.1 and v4.1.0)
+   - `gnomad_version` string: gnomAD version to use for annotation: 'v3.1.1' (default) or 'v4.1.0' (informational parameter)
    - `vep_cache` file: `homo_sapiens_merged_vep_105_indexed_GRCh38.tar.gz`
    - `merged` boolean: Set to true if merged cache used, default: `true`
    - `run_cache_existing` boolean: Run the check_existing flag for cache, default: `true`
@@ -221,6 +221,7 @@ inputs:
   # bcftools annotate if more to do
   bcftools_annot_clinvar_columns: {type: 'string?', doc: "csv string of columns from annotation to port into the input vcf", default: "INFO/ALLELEID,INFO/CLNDN,INFO/CLNDNINCL,INFO/CLNDISDB,INFO/CLNDISDBINCL,INFO/CLNHGVS,INFO/CLNREVSTAT,INFO/CLNSIG,INFO/CLNSIGCONF,INFO/CLNSIGINCL,INFO/CLNVC,INFO/CLNVCSO,INFO/CLNVI"}
   clinvar_annotation_vcf: {type: 'File?', secondaryFiles: ['.tbi'], doc: "additional bgzipped annotation vcf file"}
+  gnomad_version: {type: 'string?', doc: "gnomAD version to use for annotation. Supported values: 'v3.1.1' (default), 'v4.1.0'. This parameter is informational and helps users specify which gnomAD echtvar file they are using.", default: "v3.1.1"}
   echtvar_anno_zips: { type: 'File[]?', doc: "Annotation ZIP files for echtvar anno",
     "sbg:suggestedValue": [{class: File, path: 65c64d847dab7758206248c6, name: gnomad.v3.1.1.custom.echtvar.zip}] } 
   # VEP-specific
