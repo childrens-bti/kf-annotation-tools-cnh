@@ -83,6 +83,19 @@ doc: |-
   gnomad_3_1_1_AF_non_cancer_popmax
   gnomad_3_1_1_AF_non_cancer_all_popmax
   gnomad_3_1_1_FILTER
+
+  #### gnomAD Version Selection
+  This workflow supports both gnomAD v3.1.1 (default) and v4.1.0 through the `echtvar_anno_zips` parameter.
+
+  **To use v3.1.1** (default):
+  - Provide `gnomad.v3.1.1.custom.echtvar.zip` via `echtvar_anno_zips`
+  - Annotation fields will have `gnomad_3_1_1_` prefix (as shown above)
+
+  **To use v4.1.0**:
+  - Provide `gnomad.v4.1.0.custom.echtvar.zip` via `echtvar_anno_zips`
+  - Annotation fields will have `gnomad_4_1_0_` prefix
+  - Note: v4.1.0 includes updated population groups and expanded coverage. See [gnomAD v4.1 release notes](https://gnomad.broadinstitute.org/news/2024-04-gnomad-v4-1/) for details on new features and population changes.
+
   ```
 
   ## Optional annotations
