@@ -378,3 +378,7 @@ Icon
 Network Trash Folder
 Temporary Items
 .apdisk
+
+# intermidiate build files
+*.vcf.gz
+chr_list.txt
