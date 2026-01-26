@@ -104,7 +104,7 @@ These fields are added by the Python script in Step 2:
 
 ### Python Dependencies
 ```bash
-pip install pysam==0.22.0
+pip install pysam==0.23.3
 ```
 
 ### Reference Files
@@ -242,11 +242,11 @@ Use `scripts/custom_vcf_info_v4.1.0.py` to add three calculated fields:
 ### Run Custom INFO Addition
 
 ```bash
-# Process all chromosomes in parallel (8 at a time, 2 threads each, ~30min on m6i.8xlarge)
+# Process all chromosomes in parallel (8 at a time, 4 threads each, ~30min on m6i.8xlarge)
 cat chr_list.txt | xargs -IFN -P 8 python3 scripts/custom_vcf_info_v4.1.0.py \
   --input_vcf gnomad.genomes.v4.1.0.sites.FN.bcftools_INFO_subset.vt_norm.vcf.gz \
   --output_basename gnomad.genomes.v4.1.0.sites.FN.custom \
-  --threads 2
+  --threads 4
 ```
 
 **Expected output:** Per-chromosome VCF files with custom fields:
@@ -274,11 +274,13 @@ Example excerpt:
 ### Run echtvar Encoding
 
 ```bash
-# Encode all chromosome VCFs into a single echtvar zip
-echtvar encode \
-  gnomad.v4.1.0.custom.echtvar.zip \
-  docs/gnomad_update_v4.1.0.json \
-  gnomad.genomes.v4.1.0.sites.*.custom.INFO_added.vcf.gz
+# Encode all chromosome VCFs into a single echtvar zip using Docker
+docker run --rm -v $PWD:/work -w /work \
+  pgc-images.sbgenomics.com/d3b-bixu/echtvar:0.1.9 \
+  echtvar encode \
+    gnomad.v4.1.0.custom.echtvar.zip \
+    docs/gnomad_update_v4.1.0.json \
+    gnomad.genomes.v4.1.0.sites.*.custom.INFO_added.vcf.gz
 ```
 
 **Expected output:**
@@ -287,15 +289,16 @@ echtvar encode \
 ### Verify the Reference
 
 ```bash
-# View encoded fields
-echtvar view gnomad.v4.1.0.custom.echtvar.zip | head -50
+# View encoded fields using Docker
+docker run --rm -v $PWD:/work -w /work \
+  pgc-images.sbgenomics.com/d3b-bixu/echtvar:0.1.9 \
+  echtvar view gnomad.v4.1.0.custom.echtvar.zip | head -50
 
-# Test annotation on a sample VCF
-echtvar anno \
-  -e gnomad.v4.1.0.custom.echtvar.zip \
-  sample.vcf.gz \
-  | bcftools query -f '%CHROM\t%POS\t%INFO/gnomad_4_1_0_AF\t%INFO/gnomad_4_1_0_AF_non_cancer_popmax\n' \
-  | head
+# Test annotation on a sample VCF using Docker
+docker run --rm -v $PWD:/work -w /work \
+  pgc-images.sbgenomics.com/d3b-bixu/echtvar:0.1.9 \
+  bash -c "echtvar anno -e gnomad.v4.1.0.custom.echtvar.zip sample.vcf.gz | \
+  bcftools query -f '%CHROM\t%POS\t%INFO/gnomad_4_1_0_AF\t%INFO/gnomad_4_1_0_AF_popmax\n' | head"
 ```
 
 ## Quality Control
@@ -340,29 +343,6 @@ bcftools query -f '%CHROM\t%POS\t%INFO/AF\t%INFO/AF_afr\t%FILTER\n' \
 bcftools query -f '%CHROM\t%POS\t%INFO/AF\t%INFO/AF_afr\t%INFO/GNOMAD_FILTER\t%INFO/AF_popmax\n' \
   gnomad.genomes.v4.1.0.sites.${CHROM}.custom.INFO_added.vcf.gz \
   -r ${CHROM}:${POS}-${POS}
-```
-
-## Integration into Workflow
-
-### Reference Path
-
-Copy the final echtvar reference to your references directory:
-
-```bash
-cp gnomad.v4.1.0.custom.echtvar.zip /path/to/references/
-```
-
-### Workflow Configuration
-
-In your workflow inputs YAML (e.g., `params/kfdrc-germline-variant-wf_inputs.yml`):
-
-```yaml
-# Use gnomAD v4.1.0
-gnomad_version: "v4.1.0"
-
-echtvar_anno_zips:
-  - class: File
-    path: /path/to/references/gnomad.v4.1.0.custom.echtvar.zip
 ```
 
 ### Annotated Fields
@@ -413,7 +393,7 @@ gnomad_4_1_0_FILTER, gnomad_4_1_0_AF_popmax, gnomad_4_1_0_AF_all_popmax
 
 - Download + normalize: ~4-8 hours with 12 parallel processes
 - Custom INFO addition: ~2-4 hours with 8 parallel processes
-- echtvar encoding: ~30-60 minutes
+- echtvar encoding: **2-4 hours** (single-threaded; processes all 24 chromosomes sequentially)
 
 ### Cleanup
 
