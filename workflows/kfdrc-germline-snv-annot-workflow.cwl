@@ -84,17 +84,39 @@ doc: |-
   gnomad_3_1_1_AF_non_cancer_all_popmax
   gnomad_3_1_1_FILTER
 
+  ### [gnomAD 4.1.0](https://gnomad.broadinstitute.org/)
+  Using echtvar with a [custom implementation of gnomAD v4.1.0](CUSTOM_GNOMAD_REF_v4.1.0.md), the following population statistics are available (60 fields with `gnomad_4_1_0_` prefix):
+  
+  **Basic statistics:**
+  gnomad_4_1_0_AC, gnomad_4_1_0_AN, gnomad_4_1_0_AF, gnomad_4_1_0_nhomalt
+  
+  **Genetic ancestry group maximum (grpmax):**
+  gnomad_4_1_0_grpmax, gnomad_4_1_0_AC_grpmax, gnomad_4_1_0_AN_grpmax, gnomad_4_1_0_AF_grpmax, gnomad_4_1_0_nhomalt_grpmax
+  
+  **Filtering allele frequency:**
+  gnomad_4_1_0_fafmax_faf95_max, gnomad_4_1_0_fafmax_faf95_max_gen_anc
+  
+  **Per-population statistics** (AC, AN, AF, nhomalt for each):
+  gnomad_4_1_0_*_afr (African/African American), gnomad_4_1_0_*_ami (Amish), gnomad_4_1_0_*_amr (Latino/Admixed American), gnomad_4_1_0_*_asj (Ashkenazi Jewish), gnomad_4_1_0_*_eas (East Asian), gnomad_4_1_0_*_fin (Finnish), gnomad_4_1_0_*_mid (Middle Eastern), gnomad_4_1_0_*_nfe (Non-Finnish European), gnomad_4_1_0_*_sas (South Asian), gnomad_4_1_0_*_remaining (Remaining ancestry)
+  
+  **Predictors:**
+  gnomad_4_1_0_cadd_phred, gnomad_4_1_0_revel_max, gnomad_4_1_0_polyphen_max, gnomad_4_1_0_sift_max, gnomad_4_1_0_spliceai_ds_max, gnomad_4_1_0_phylop
+  
+  **Custom calculated:**
+  gnomad_4_1_0_FILTER, gnomad_4_1_0_AF_popmax, gnomad_4_1_0_AF_all_popmax
+
   #### gnomAD Version Selection
   This workflow supports both gnomAD v3.1.1 (default) and v4.1.0 through the `echtvar_anno_zips` parameter.
 
   **To use v3.1.1** (default):
   - Provide `gnomad.v3.1.1.custom.echtvar.zip` via `echtvar_anno_zips`
-  - Annotation fields will have `gnomad_3_1_1_` prefix (as shown above)
+  - Annotation fields will have `gnomad_3_1_1_` prefix
 
   **To use v4.1.0**:
   - Provide `gnomad.v4.1.0.custom.echtvar.zip` via `echtvar_anno_zips`
   - Annotation fields will have `gnomad_4_1_0_` prefix
-  - Note: v4.1.0 includes updated population groups and expanded coverage. See [gnomAD v4.1 release notes](https://gnomad.broadinstitute.org/news/2024-04-gnomad-v4-1/) for details on new features and population changes.
+  - See [CUSTOM_GNOMAD_REF_v4.1.0.md](CUSTOM_GNOMAD_REF_v4.1.0.md) for reference creation details
+  - See [gnomAD v4.1 release notes](https://gnomad.broadinstitute.org/news/2024-04-gnomad-v4-1/) for schema changes
 
   ```
 
