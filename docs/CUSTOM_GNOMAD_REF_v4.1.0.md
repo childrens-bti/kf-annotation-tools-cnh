@@ -384,16 +384,16 @@ gnomad_4_1_0_FILTER, gnomad_4_1_0_AF_popmax, gnomad_4_1_0_AF_all_popmax
 
 ### Storage Requirements
 
-- Normalized VCFs: ~200-300 GB total
-- Custom INFO VCFs: ~200-300 GB total
-- Final echtvar zip: ~5-10 GB
-- Recommend ~1 TB working space for intermediate files
+- **Normalized VCFs: ~54 GB total** (57 fields subset per chromosome)
+- **Custom INFO VCFs: ~58 GB total** (with added GNOMAD_FILTER, AF_popmax, AF_all_popmax)
+- **Final echtvar zip: ~24 GB**
+- Total working space needed: ~136 GB (before cleanup)
 
 ### Compute Resources
 
-- Download + normalize: ~4-8 hours with 12 parallel processes
-- Custom INFO addition: ~2-4 hours with 8 parallel processes
-- echtvar encoding: **2-4 hours** (single-threaded; processes all 24 chromosomes sequentially)
+- Download + normalize: **~3 hours** with 12 parallel processes (depends on network speed)
+- Custom INFO addition: **~1.5 hours** with 8 parallel processes
+- echtvar encoding: **~2.5+ hours** (single-threaded; 24 GB reference, 60 fields × millions of variants)
 
 ### Cleanup
 
