@@ -153,7 +153,7 @@ inputs:
     inputBinding: { position: 1, prefix: "--assembly"} }
   domains: { type: 'boolean?', doc: "Adds names of overlapping protein domains to output. Not used by default", default: true,
     inputBinding: { position: 1, prefix: "--domains"} }
-  failed: { type: ['null', {type: enum, name: failed, symbols: ["0", "1"]}], doc: "When checking for co-located variants, by default VEP will exclude variants that have been flagged as failed. Set this flag to include such variants. 0 is exclude", default: 1,
+  failed: { type: ['null', {type: enum, name: failed, symbols: ["0", "1"]}], doc: "When checking for co-located variants, by default VEP will exclude variants that have been flagged as failed. Set this flag to include such variants. 0 is exclude", default: "1",
     inputBinding: { position: 1, prefix: "--failed"} }
   pick_order: { type: 'string?', doc: "Customise the order of criteria (and the list of criteria) applied when choosing a block of annotation data with one of the following options: --pick, --pick_allele, --per_gene, --pick_allele_gene, --flag_pick, --flag_pick_allele, --flag_pick_allele_gene.",
     default: "canonical,tsl,biotype,rank,ccds,length", inputBinding: { position: 1, prefix: "--pick_order" } }
@@ -173,7 +173,7 @@ inputs:
     inputBinding: {position: 2, prefix: "--pubmed" } }
   regulatory: { type: 'boolean?', doc: "Look for overlaps with regulatory regions. VEP can also report if a variant falls in a high information position within a transcription factor binding site. Output lines have a Feature type of RegulatoryFeature or MotifFeature", default: true,
     inputBinding: {position: 2, prefix: "--regulatory" } }
-  shift_hgvs: { type: ['null', { type: enum, name: shift_hgvs, symbols: ["0", "1"] }], doc: "Enable or disable 3' shifting of HGVS notations. HGVS nomenclature requires an ambiguous sequence change to be described at the most 3' possible location. When enabled, this causes 'shifting' to the most 3' possible coordinates (relative to the transcript sequence and strand) before the HGVS notations are calculated; the flag HGVS_OFFSET is set to the number of bases by which the variant has shifted, relative to the input genomic coordinates. If HGVS_OFFSET is equals to 0, no value will be added to HGVS_OFFSET column. To disable the changing of location at transcript level set --shift_hgvs to 0.", default: 1,
+  shift_hgvs: { type: ['null', { type: enum, name: shift_hgvs, symbols: ["0", "1"] }], doc: "Enable or disable 3' shifting of HGVS notations. HGVS nomenclature requires an ambiguous sequence change to be described at the most 3' possible location. When enabled, this causes 'shifting' to the most 3' possible coordinates (relative to the transcript sequence and strand) before the HGVS notations are calculated; the flag HGVS_OFFSET is set to the number of bases by which the variant has shifted, relative to the input genomic coordinates. If HGVS_OFFSET is equals to 0, no value will be added to HGVS_OFFSET column. To disable the changing of location at transcript level set --shift_hgvs to 0.", default: "1",
     inputBinding: { position: 1, prefix: "--shift_hgvs"} }
   total_length: { type: 'boolean?', doc: "Give cDNA, CDS and protein positions as Position/Length", default: true,
     inputBinding: {position: 2, prefix: "--total_length" } }
