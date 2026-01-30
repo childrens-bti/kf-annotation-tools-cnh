@@ -85,6 +85,8 @@ requirements:
     coresMin: $(inputs.cores)
   - class: DockerRequirement
     dockerPull: 'ensemblorg/ensembl-vep:release_105.0'
+  - class: NetworkAccess
+    networkAccess: true
 baseCommand: ["/bin/bash", "-c"]
 arguments:
   - position: 0
