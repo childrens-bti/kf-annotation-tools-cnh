@@ -378,3 +378,9 @@ Icon
 Network Trash Folder
 Temporary Items
 .apdisk
+
+# intermidiate build files
+*.vcf.gz
+*.vcf.gz.tbi
+chr_list.txt
+gnomad.v4.1.0.custom.echtvar.zip
