@@ -84,7 +84,7 @@ These fields are added by the Python script in Step 2:
 ### Field Count Summary
 
 - **v3.1.1**: 28 fields total (26 from VCF + 2 custom calculated)
-- **v4.1.0**: 63 fields total (60 from VCF + 3 custom calculated)
+- **v4.1.0**: 60 fields total (57 from VCF + 3 custom calculated)
 
 ### Configuration Files
 
@@ -100,7 +100,7 @@ These fields are added by the Python script in Step 2:
 
 ### Docker Images
 - `pgc-images.sbgenomics.com/d3b-bixu/vcfutils:latest` (for bcftools, vt, curl)
-- `pgc-images.sbgenomics.com/d3b-bixu/echtvar:0.1.9` (for echtvar encoding)
+- `pgc-images.sbgenomics.com/d3b-bixu/echtvar:0.2.0` (for echtvar encoding)
 
 ### Python Dependencies
 ```bash
@@ -110,6 +110,31 @@ pip install pysam==0.23.3
 ### Reference Files
 - `Homo_sapiens_assembly38.fasta` (reference genome for variant normalization)
 - Chromosome list file (chr1-22, X, Y)
+
+## Automated Build
+
+To run all reference-build steps and validate the encoded metadata, use:
+
+```bash
+python3 -m venv .venv-gnomad-v4
+.venv-gnomad-v4/bin/python -m pip install pysam==0.23.3
+
+PYTHON_BIN=$PWD/.venv-gnomad-v4/bin/python \
+DOWNLOAD_WORKERS=4 \
+DOWNLOAD_THREADS=4 \
+INFO_WORKERS=8 \
+INFO_THREADS=4 \
+bash scripts/build_gnomad_v4_echtvar_reference.sh /path/to/gnomad-v4-build
+```
+
+The settings above are a balanced profile for 32 vCPUs and at least 500 GB free
+disk space. `DOWNLOAD_WORKERS` controls concurrent chromosomes, while
+`DOWNLOAD_THREADS` controls the `bcftools` and `bgzip` threads within each job.
+The script does not replace the active reference ZIP.
+
+Set `RESUME=1` only after an interruption of this script's strict-error build;
+it reuses existing chromosome-level outputs and does not independently validate
+their completeness.
 
 ## Step 1: Download and Normalize
 
@@ -276,7 +301,7 @@ Example excerpt:
 ```bash
 # Encode all chromosome VCFs into a single echtvar zip using Docker
 docker run --rm -v $PWD:/work -w /work \
-  pgc-images.sbgenomics.com/d3b-bixu/echtvar:0.1.9 \
+  pgc-images.sbgenomics.com/d3b-bixu/echtvar:0.2.0 \
   echtvar encode \
     gnomad.v4.1.0.custom.echtvar.zip \
     docs/gnomad_update_v4.1.0.json \
@@ -286,19 +311,25 @@ docker run --rm -v $PWD:/work -w /work \
 **Expected output:**
 - `gnomad.v4.1.0.custom.echtvar.zip` (~few GB)
 
+`echtvar:0.2.0` is required here: it stores each field's VCF `Number`
+and description metadata in the archive. Earlier image versions can omit this
+metadata, causing `echtvar anno` to emit invalid INFO headers with `Number=`.
+
 ### Verify the Reference
 
 ```bash
-# View encoded fields using Docker
+# Annotate a sample VCF using Docker.
 docker run --rm -v $PWD:/work -w /work \
-  pgc-images.sbgenomics.com/d3b-bixu/echtvar:0.1.9 \
-  echtvar view gnomad.v4.1.0.custom.echtvar.zip | head -50
+  pgc-images.sbgenomics.com/d3b-bixu/echtvar:0.2.0 \
+  echtvar anno sample.vcf.gz annotated.vcf.gz \
+    -e gnomad.v4.1.0.custom.echtvar.zip
 
-# Test annotation on a sample VCF using Docker
-docker run --rm -v $PWD:/work -w /work \
-  pgc-images.sbgenomics.com/d3b-bixu/echtvar:0.1.9 \
-  bash -c "echtvar anno -e gnomad.v4.1.0.custom.echtvar.zip sample.vcf.gz | \
-  bcftools query -f '%CHROM\t%POS\t%INFO/gnomad_4_1_0_AF\t%INFO/gnomad_4_1_0_AF_popmax\n' | head"
+# Confirm every encoded INFO field has a non-empty VCF Number value.
+unzip -p gnomad.v4.1.0.custom.echtvar.zip echtvar/config.json \
+  | jq -e 'all(.[]; has("number") and (.number | length > 0))'
+
+# Confirm the annotation output also contains non-empty Number values.
+zcat annotated.vcf.gz | grep '^##INFO=<ID=gnomad_4_1_0_' | head
 ```
 
 ## Quality Control
@@ -387,13 +418,15 @@ gnomad_4_1_0_FILTER, gnomad_4_1_0_AF_popmax, gnomad_4_1_0_AF_all_popmax
 - **Normalized VCFs: ~54 GB total** (57 fields subset per chromosome)
 - **Custom INFO VCFs: ~58 GB total** (with added GNOMAD_FILTER, AF_popmax, AF_all_popmax)
 - **Final echtvar zip: ~24 GB**
-- Total working space needed: ~136 GB (before cleanup)
+- **Raw gnomAD downloads: ~20–44 GB per concurrent chromosome** (temporary)
+- **Recommended free space: at least 500 GB** for four concurrent download jobs
 
 ### Compute Resources
 
-- Download + normalize: **~3 hours** with 12 parallel processes (depends on network speed)
-- Custom INFO addition: **~1.5 hours** with 8 parallel processes
+- Download + normalize: **~5 hours** with four concurrent jobs and four threads per job (depends on network speed)
+- Custom INFO addition: **~1–2 hours** with eight parallel jobs and four threads each
 - echtvar encoding: **~2.5+ hours** (single-threaded; 24 GB reference, 60 fields × millions of variants)
+- Expected end-to-end runtime: **~8–10 hours** with the recommended automated-build profile
 
 ### Cleanup
 
