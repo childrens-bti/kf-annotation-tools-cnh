@@ -1,0 +1,110 @@
+# REDIportal v3 RNA-Editing echtvar Reference
+
+This reference marks variants that match a known RNA-editing site in
+REDIportal v3 (hg38). It is meant for
+RNA-seq variant calls, where A-to-I editing shows up as A>G (or T>C on the minus
+strand) and can be mistaken for a DNA variant. Only presence/absence is encoded;
+REDIportal's per-tissue, per-sample and gene columns are not carried over.
+
+## Output field
+
+| Field | Type | Values |
+|---|---|---|
+| `REDIPORTAL` | Integer | `1` if CHROM, POS, REF and ALT all match a REDIportal site and its edited base; `0` otherwise |
+
+echtvar 0.2.0, the version used by [`tools/echtvar_anno.cwl`](../tools/echtvar_anno.cwl),
+cannot encode `Flag` fields, so absence is stored as `missing_value: 0` rather
+than a missing flag. Every variant annotated with this ZIP therefore carries
+`REDIPORTAL=0` or `REDIPORTAL=1`. Select likely editing sites with
+`INFO/REDIPORTAL=1` (bcftools) or `REDIPORTAL == 1` (GATK JEXL).
+
+Matching is allele-specific: a variant at a REDIportal position with a different
+alternate base (for example A>T at an A>G editing site) gets `0`.
+
+## Source
+
+- REDIportal v3, hg38: `https://rediportal.cloud.ba.infn.it/download/TABLE1_hg38_v3.txt.gz`
+- Columns used: `Region` (CHROM), `Position` (POS), `Ref` (REF), `Ed` (ALT).
+  `Ref` and `Ed` are already on the genomic + strand, so no strand conversion is
+  done.
+
+## Build
+
+Requirements: Docker (pulls `pgc-images.sbgenomics.com/d3b-bixu/echtvar:0.2.0`,
+which also provides bcftools), `gzip`, `awk`, and `curl` if downloading.
+
+Download the table and build:
+
+```bash
+bash scripts/build_rediportal_v3.sh /path/to/rediportal-build
+```
+
+Or reuse a table that is already downloaded and choose the output path:
+
+```bash
+INPUT_TABLE=/path/to/TABLE1_hg38_v3.txt.gz \
+OUTPUT_ZIP=/path/to/rediportal_v3_hg38.echtvar.zip \
+  bash scripts/build_rediportal_v3.sh /path/to/rediportal-build
+```
+
+Optional environment variables:
+
+- `INPUT_TABLE`: existing `TABLE1_hg38_v3.txt.gz` to use instead of downloading it.
+- `TABLE_URL`: download URL (default: the REDIportal v3 hg38 URL above).
+- `OUTPUT_ZIP`: output ZIP path (default: `<build-directory>/rediportal_v3_hg38.echtvar.zip`).
+  The script refuses to overwrite an existing ZIP.
+
+The script:
+
+1. Converts the table to a sites-only VCF with `REDIPORTAL=1` on every record and
+   one `##contig` line per contig (echtvar crashes without them).
+2. Stops if the header is not as expected, if any row is malformed (REF or ALT not
+   a single A/C/G/T base, REF equal to ALT, non-numeric position), if rows are not
+   sorted, or if the table has no sites.
+3. Encodes the VCF with `echtvar encode` and this config:
+
+   ```json
+   [
+     {"field": "REDIPORTAL", "alias": "REDIPORTAL", "missing_value": 0}
+   ]
+   ```
+
+4. Strips `REDIPORTAL` from the sites VCF, annotates every site back against the
+   new ZIP, and fails unless all of them return `REDIPORTAL=1`.
+
+The sites VCF (`rediportal_v3_hg38.sites.vcf.gz`, about 50 MB) and the echtvar
+config are left in the build directory.
+
+### v3 build
+
+| | Count |
+|---|---|
+| Table rows | 15,680,832 |
+| Sites encoded | 15,680,832 |
+| Malformed rows | 0 |
+| Distinct CHROM/POS | 15,680,832 (one edited base per position) |
+| Contigs | 44 (chr1-22, X, Y, M and 19 alt/random contigs) |
+| Round-trip `REDIPORTAL=1` | 15,680,832 |
+| ZIP size | about 18 MB |
+
+## Use in the annotation workflows
+
+Add the ZIP to `echtvar_anno_zips` alongside the gnomAD ZIP. The list replaces the
+suggested default, so keep gnomAD in it or the `GNOMAD_AF_HIGH` filter has no
+`gnomad_3_1_1_AF` to read:
+
+```yaml
+echtvar_anno_zips:
+  - {class: File, path: gnomad.v3.1.1.custom.echtvar.zip}
+  - {class: File, path: rediportal_v3_hg38.echtvar.zip}
+```
+
+All ZIPs in the list go to a single `echtvar anno` call, so no workflow change is
+needed. The field is added to the VCF outputs automatically; to also get it as a
+MAF column, append `REDIPORTAL` to `retain_info`.
+
+`REDIPORTAL` does not affect the default soft filters or the public filter
+(`FILTER="PASS"|INFO/HotSpotAllele=1`), so editing sites are tagged, not removed.
+
+The ZIP uses `chr`-prefixed contig names. Input VCFs with `1`, `2`, ... contigs
+will match nothing.
