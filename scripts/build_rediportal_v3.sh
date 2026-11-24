@@ -9,19 +9,22 @@
 #   TABLE_URL     Download URL (default: REDIportal v3 hg38 TABLE1).
 #   OUTPUT_ZIP    Output ZIP path (default: <build-directory>/rediportal_v3_hg38.echtvar.zip).
 #
-# The ZIP adds one INFO field, REDIPORTAL (Integer): 1 when CHROM, POS, REF and
-# ALT all match a REDIportal site and its edited base, 0 otherwise. echtvar 0.2.0
-# (the version used by tools/echtvar_anno.cwl) cannot encode Flag fields, so
-# absence is encoded as missing_value 0. Filter with INFO/REDIPORTAL=1.
+# The ZIP adds one INFO field, REDIPORTAL_V3 (Integer): 1 when CHROM, POS, REF
+# and ALT all match a REDIportal v3 site and its edited base, 0 otherwise.
+# echtvar 0.2.0 (the version used by tools/echtvar_anno.cwl) cannot encode Flag
+# fields, so absence is encoded as missing_value 0. Filter with
+# INFO/REDIPORTAL_V3=1.
 #
 # REDIportal's Ref/Ed bases are already on the genomic + strand (a minus-strand
 # A-to-I edit is listed as T>C), so no strand conversion is done. Only
 # presence/absence is kept; REDIportal's per-tissue and gene columns are dropped.
 #
 # The build fails on an unexpected header, malformed or unsorted rows, or an
-# empty table. After encoding, every site is annotated back against the ZIP and
-# the build fails unless all of them return REDIPORTAL=1. Intermediate files are
-# left in the build directory.
+# empty table. The ZIP is encoded as <name>.unverified.zip next to OUTPUT_ZIP;
+# every site is annotated back against it, and it is renamed to OUTPUT_ZIP only
+# if all of them return REDIPORTAL_V3=1. On failure OUTPUT_ZIP is not created
+# and the unverified ZIP is left for inspection (a re-run replaces it).
+# Intermediate files are left in the build directory.
 
 set -euo pipefail
 
@@ -64,6 +67,10 @@ fi
 
 readonly OUTPUT_DIR="$(dirname "${OUTPUT_ZIP}")"
 readonly OUTPUT_BASENAME="$(basename "${OUTPUT_ZIP}")"
+# The ZIP is encoded under this name and renamed to OUTPUT_ZIP only after the
+# round-trip check passes, so a failed build never leaves a file at OUTPUT_ZIP.
+readonly UNVERIFIED_BASENAME="${OUTPUT_BASENAME%.zip}.unverified.zip"
+readonly UNVERIFIED_ZIP="${OUTPUT_DIR}/${UNVERIFIED_BASENAME}"
 
 if [[ ! -d "${OUTPUT_DIR}" ]]; then
   echo "Output directory does not exist: ${OUTPUT_DIR}" >&2
@@ -101,7 +108,7 @@ echtvar_docker() {
 
 cat > rediportal_v3.echtvar.json <<'EOF'
 [
-  {"field": "REDIPORTAL", "alias": "REDIPORTAL", "missing_value": 0}
+  {"field": "REDIPORTAL_V3", "alias": "REDIPORTAL_V3", "missing_value": 0}
 ]
 EOF
 
@@ -129,7 +136,7 @@ gzip -cd "${table}" | LC_ALL=C awk -v hdr=header.vcf -v stats=convert_stats.txt 
     }
     if ($3 + 0 < last) { print "Unsorted positions at line " NR > "/dev/stderr"; err = 1; exit 1 }
     last = $3 + 0
-    print $2, $3, ".", $4, $5, ".", ".", "REDIPORTAL=1"
+    print $2, $3, ".", $4, $5, ".", ".", "REDIPORTAL_V3=1"
     kept++
   }
   END {
@@ -137,7 +144,7 @@ gzip -cd "${table}" | LC_ALL=C awk -v hdr=header.vcf -v stats=convert_stats.txt 
     print "##fileformat=VCFv4.2" > hdr
     print "##source=REDIportal v3 hg38 (TABLE1_hg38_v3.txt.gz)" > hdr
     for (i = 1; i <= n; i++) print "##contig=<ID=" order[i] ">" > hdr
-    print "##INFO=<ID=REDIPORTAL,Number=1,Type=Integer,Description=\"1 if site and edited allele are present in REDIportal v3 (hg38)\">" > hdr
+    print "##INFO=<ID=REDIPORTAL_V3,Number=1,Type=Integer,Description=\"1 if site and edited allele are present in REDIportal v3 (hg38)\">" > hdr
     print "#CHROM", "POS", "ID", "REF", "ALT", "QUAL", "FILTER", "INFO" > hdr
     print (NR - 1), kept + 0, bad + 0, n > stats
   }
@@ -158,25 +165,28 @@ fi
 cat header.vcf body.vcf | echtvar_docker bcftools view -Oz -o "${SITES_VCF}" -
 rm body.vcf
 
+rm -f "${UNVERIFIED_ZIP}"
 echtvar_docker echtvar encode \
-  "/output/${OUTPUT_BASENAME}" \
+  "/output/${UNVERIFIED_BASENAME}" \
   rediportal_v3.echtvar.json \
   "${SITES_VCF}"
 
-# Round trip: strip REDIPORTAL, re-annotate every site from the ZIP, and require
+# Round trip: strip REDIPORTAL_V3, re-annotate every site from the ZIP, and require
 # that all of them come back as 1.
 echtvar_docker sh -c "
   set -eu
-  bcftools annotate -x INFO/REDIPORTAL -Oz -o roundtrip_input.vcf.gz ${SITES_VCF}
-  echtvar anno -e '/output/${OUTPUT_BASENAME}' roundtrip_input.vcf.gz roundtrip_annotated.vcf.gz >/dev/null 2>&1
-  bcftools view -H -i 'INFO/REDIPORTAL=1' roundtrip_annotated.vcf.gz | wc -l > roundtrip_hits.txt
+  bcftools annotate -x INFO/REDIPORTAL_V3 -Oz -o roundtrip_input.vcf.gz ${SITES_VCF}
+  echtvar anno -e '/output/${UNVERIFIED_BASENAME}' roundtrip_input.vcf.gz roundtrip_annotated.vcf.gz >/dev/null 2>&1
+  bcftools view -H -i 'INFO/REDIPORTAL_V3=1' roundtrip_annotated.vcf.gz | wc -l > roundtrip_hits.txt
 "
 read -r roundtrip_hits < roundtrip_hits.txt
 rm -f roundtrip_input.vcf.gz roundtrip_annotated.vcf.gz
 
 if [[ "${roundtrip_hits}" -ne "${kept_rows}" ]]; then
-  echo "Round-trip check failed: ${roundtrip_hits} of ${kept_rows} sites returned REDIPORTAL=1." >&2
+  echo "Round-trip check failed: ${roundtrip_hits} of ${kept_rows} sites returned REDIPORTAL_V3=1." >&2
+  echo "Unverified ZIP left at ${UNVERIFIED_ZIP}; ${OUTPUT_ZIP} was not written." >&2
   exit 1
 fi
 
+mv "${UNVERIFIED_ZIP}" "${OUTPUT_ZIP}"
 echo "Reference build complete; all ${kept_rows} sites verified: ${OUTPUT_ZIP}"
