@@ -85,8 +85,15 @@ config are left in the build directory.
 
 ### v3 build
 
-| | Count |
+REDIportal serves the table from a fixed URL, so the URL alone does not identify
+the version. Check the MD5 of a downloaded `TABLE1_hg38_v3.txt.gz` against the
+one below before comparing counts; a different MD5 means the file has changed
+since this build.
+
+| | Value |
 |---|---|
+| Input downloaded | 2026-11-18 |
+| Input MD5 (`TABLE1_hg38_v3.txt.gz`) | `e861984b3cc959936c21a76fed30bc82` |
 | Table rows | 15,680,832 |
 | Sites encoded | 15,680,832 |
 | Malformed rows | 0 |
