@@ -119,7 +119,11 @@ since this build.
 | Distinct CHROM/POS | 15,680,832 (one edited base per position) |
 | Contigs | 44 (chr1-22, X, Y, M and 19 alt/random contigs) |
 | Round-trip `REDIPORTAL_V3=1` | 15,680,832 |
-| ZIP size | about 18 MB |
+| ZIP size | about 18 MB (18,349,172 bytes) |
+| ZIP MD5 (`rediportal_v3_hg38.echtvar.zip`) | `0c8d408529e9773bc29dca1cc5016807` |
+
+The build is reproducible: rebuilding from the input above with
+`echtvar:0.2.0` gives a byte-identical ZIP with the same MD5.
 
 ## Use in the annotation workflows
 
@@ -140,5 +144,7 @@ MAF column, append `REDIPORTAL_V3` to `retain_info`.
 `REDIPORTAL_V3` does not affect the default soft filters or the public filter
 (`FILTER="PASS"|INFO/HotSpotAllele=1`), so editing sites are tagged, not removed.
 
-The ZIP uses `chr`-prefixed contig names. Input VCFs with `1`, `2`, ... contigs
-will match nothing.
+echtvar strips a leading `chr` from contig names both when encoding and when
+annotating, so input VCFs match whether they use `chr1`, `chr2`, ... or `1`,
+`2`, ... contig names. Annotating `chr1:87158 T>C` and `1:87158 T>C` against
+the v3 ZIP both return `REDIPORTAL_V3=1`.
