@@ -76,12 +76,31 @@ The script:
 
 4. Strips `REDIPORTAL_V3` from the sites VCF, annotates every site back against
    the unverified ZIP, and fails unless all of them return `REDIPORTAL_V3=1`.
+   It then annotates up to 20 off-site records and fails unless every one
+   returns `REDIPORTAL_V3=0`:
+   - 10 wrong-ALT records: site positions with an ALT that is neither its REF
+     nor an edited base listed there (for example A>T at an A>G site). These
+     check that matching is allele-specific.
+   - 10 non-site records: positions directly after a site where the next site
+     on that contig is further than one base away, each as A>G. These check
+     that positions absent from REDIportal get an explicit `0`. REF need not
+     match the genome; echtvar only compares CHROM, POS, REF and ALT.
+
+   Each kind uses the first candidate on each contig, taken from up to 10
+   primary chromosomes (chr1-22, X, Y) spaced evenly through the table, so the
+   check is not confined to one region; alt, random, unplaced and chrM contigs
+   are used only if no primary chromosome has a candidate. The build log lists
+   the contigs used. The build fails if it
+   cannot pick at least one record of each kind.
 5. Renames the unverified ZIP to `OUTPUT_ZIP`. If any earlier step fails,
    `OUTPUT_ZIP` is not created, so a re-run is not blocked; a leftover
    `.unverified.zip` is kept for inspection and replaced by the next run.
 
-The sites VCF (`rediportal_v3_hg38.sites.vcf.gz`, about 50 MB) and the echtvar
-config are left in the build directory.
+Intermediate and check files (the sites VCF, about 50 MB, the VCF header, the
+echtvar config, and the round-trip and negative-check files) are written to a
+temporary directory under `$TMPDIR` (or `/tmp`) and removed when the script
+exits, whether it succeeds or fails. The build directory receives only the
+downloaded table and, unless `OUTPUT_ZIP` points elsewhere, the ZIP.
 
 ### v3 build
 
